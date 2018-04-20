@@ -1,5 +1,5 @@
 
-class Monito {
+class Monitor {
     constructor() {
       this.info = {
         openTime: 0,
@@ -16,9 +16,10 @@ class Monito {
         nowTime: '',// 时间
       }
       this.timname = {
-        whiteScreenTime: '白屏时间',
-        readyTime: '用户可操作时间',
-        allloadTime: '总下载时间',
+  
+        whiteScreenTime: '白屏时间(ms)',
+        readyTime: '用户可操作时间(ms)',
+        allloadTime: '总下载时间(ms)',
         mobile: '使用设备',
         nowTime: '时间',
       }
@@ -46,30 +47,33 @@ class Monito {
         }
       }
     }
+  
+    formatWarn(items,names='') {
+        const self  = this;
+        let str = ''
+        for (let i in items) {
+          const name = names?names[i]:i;
+          if (i === 'nowTime') {
+            console.warn(name,new Date(items[i]).Format('yyyy-MM-dd hh:mm:ss'));
+          } else {
+           if (name) console.warn(name,items[i]);
+          }
+          if (items[i] === null || items[i] === undefined) {
+              items[i] = 'null';
+          }
+          str += '&'+ name + '=' + items[i].toString();
+      }
+      str = str.replace('&', '').replace('\n','').replace(/\s/g, '');
+      return str;
+    }
+  
     onload() {
       const self = this;
       self.info.allloadTime = +new Date() - self.info.openTime;
       self.info.nowTime = +new Date();
       let timname = self.timname;
-      let logStr = '';
-      const info = self.info;
-      for (let i in timname) {
-          if (i === 'mobile' || i === 'nowTime') {
-            if (i === 'nowTime') {
-              console.warn(timname[i] + ':' + new Date(info[i]).Format('yyyy-MM-dd hh:mm:ss.S q'));
-            } else {
-              console.warn(timname[i] + ':' + info[i]);
-            }
-          } else {
-            console.warn(timname[i] + ':' + info[i] + ' ms');
-          }
-          if (i === 'mobile') {
-              logStr += '&' + i + '=' + info[i];
-          } else {
-              logStr += '&' + i + '=' + info[i];
-          }
-      }
-      (new Image()).src = '/action?' + logStr.replace('&', '').replace('\n','').replace(/\s/g, '');
+      let logStr = self.formatWarn(self.info, timname);
+      (new Image()).src = '/action?' + logStr;
     }
   
     onerror(msg,url,line,col) {
@@ -80,21 +84,27 @@ class Monito {
       self.defaults.msg = msg;
       self.defaults.col =  col;
       self.defaults.nowTime = new Date();
-      let str = ''
-      let defaults = self.defaults;
-      for (let i in defaults) {
-          if (i === 'nowTime') {
-            console.warn(i,new Date(defaults[i]).Format('yyyy-MM-dd hh:mm:ss.S q'));
-          } else {
-            console.warn(i,defaults[i]);
+      let str = self.formatWarn(self.defaults);
+      (new Image()).src = '/error?' + str;
+    }
+  
+    onvueerror(msg) {
+      const self = this;
+      console.warn('vueError:',msg);
+      (new Image()).src = '/vueerror?' + msg;
+    }
+  
+    rewriteVueError() {
+      const self = this;
+      console.error = ((origin) => {
+        return (info) => {
+          var errorLog = {
+            desc: info
           }
-          if (defaults[i] === null || defaults[i] === undefined) {
-              defaults[i] = 'null';
-          }
-          str += '&'+ i + '=' + defaults[i].toString();
-      }
-      srt = str.replace('&', '').replace('\n','').replace(/\s/g, '');
-      (new Image()).src = '/error?' + srt;
+          self.onvueerror(info.toString())
+          origin.call(console,info)
+        }
+      })(console.error)
     }
   
     init() {
@@ -114,9 +124,11 @@ class Monito {
       // 页面加载错误
       window.onerror = self.onerror.bind(self)
   
+      self.rewriteVueError()
+  
     }
   
   }
   
-  export default Monito;
+  export default Monitor;
   
